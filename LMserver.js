@@ -7,7 +7,6 @@ const fetch = require("node-fetch");
 const app = express();
 app.use(express.json());
 
-// Cấu hình CORS
 const corsOptions = {
     origin: "*",
     methods: ["POST", "OPTIONS"],
@@ -38,13 +37,13 @@ function verifyShopifyRequest(req, res, next) {
     next();
 }
 
-// Route API Proxy
+// API Proxy
 app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
-    const { action, productGid } = req.body;
+    const { action, productGid, totalViews } = req.body;
 
-    if (action === "update_metafield") {
-        try {
-            // Lấy metafield hiện tại
+    try {
+        if (action === "get_metafield") {
+            // Lấy giá trị total_views từ metafield
             const query = `
                 query {
                     product(id: "${productGid}") {
@@ -67,10 +66,11 @@ app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
             let data = await response.json();
             let currentViews = data?.data?.product?.metafield?.value ? JSON.parse(data.data.product.metafield.value)[0] : 0;
 
-            // Tăng giá trị total_views
-            let newViews = currentViews + 1;
+            return res.json({ success: true, total_views: currentViews });
+        }
 
-            // Cập nhật metafield
+        if (action === "update_metafield") {
+            // Cập nhật total_views
             const updateQuery = `
                 mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
                     metafieldsSet(metafields: $metafields) {
@@ -95,7 +95,7 @@ app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
                         namespace: "custom",
                         key: "total_views",
                         type: "list.number_integer",
-                        value: JSON.stringify([newViews]),
+                        value: JSON.stringify([totalViews]),
                     }
                 ]
             };
@@ -110,14 +110,14 @@ app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
             });
 
             let updateData = await updateResponse.json();
-            res.json({ success: true, total_views: newViews, response: updateData });
-
-        } catch (error) {
-            console.error("❌ Lỗi khi gọi API Shopify:", error);
-            res.status(500).json({ success: false, error: error.message });
+            return res.json({ success: true, updated_views: totalViews, response: updateData });
         }
-    } else {
+
         res.status(400).json({ success: false, error: "Hành động không hợp lệ" });
+
+    } catch (error) {
+        console.error("❌ Lỗi khi gọi API Shopify:", error);
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 
