@@ -2,10 +2,11 @@ require("dotenv").config();
 const express = require("express");
 const crypto = require("crypto");
 const cors = require("cors");
+const fetch = require("node-fetch"); // Đảm bảo đã cài node-fetch nếu chưa có
 
 const app = express();
 app.use(express.json()); // Hỗ trợ JSON request
-app.use(cors()); // Cho phép CORS (nếu cần)
+app.use(cors()); // Cho phép CORS
 
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET; // Lấy từ Shopify App Settings
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN; // Ví dụ: "7501e1-54.myshopify.com"
@@ -13,7 +14,7 @@ const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN; // Ví dụ: "750
 // Middleware xác thực request từ Shopify
 function verifyShopifyRequest(req, res, next) {
     const hmac = req.headers["x-shopify-hmac-sha256"];
-    const body = JSON.stringify(req.body);
+    const body = JSON.stringify(req.body); // Chuyển body thành chuỗi JSON
 
     // Tạo HMAC từ body yêu cầu và shared secret
     const digest = crypto
@@ -29,7 +30,6 @@ function verifyShopifyRequest(req, res, next) {
 
     next();
 }
-
 
 // Route API Proxy
 app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
@@ -51,10 +51,15 @@ app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
             }),
         });
 
+        // Kiểm tra xem response có trả về dữ liệu hợp lệ không
+        if (!response.ok) {
+            throw new Error(`API Shopify trả về lỗi: ${response.statusText}`);
+        }
+
         const data = await response.json();
         res.json({ success: true, products: data.data.products });
     } catch (error) {
-        console.error("❌ Lỗi API Shopify:", error);
+        console.error("❌ Lỗi khi gọi API Shopify:", error);
         res.status(500).json({ success: false, error: "Lỗi khi gọi API Shopify" });
     }
 });
