@@ -2,14 +2,14 @@ require("dotenv").config();
 const express = require("express");
 const crypto = require("crypto");
 const cors = require("cors");
-const fetch = require("node-fetch"); // Đảm bảo đã cài node-fetch nếu chưa có
+const fetch = require("node-fetch");
 
 const app = express();
 app.use(express.json()); // Hỗ trợ JSON request
 
-// Cấu hình CORS để cho phép tất cả các domain (hoặc thay '*' bằng domain của bạn)
+// Cấu hình CORS để cho phép tất cả các domain (hoặc thay '*' bằng domain của bạn như 'https://yourdomain.com')
 const corsOptions = {
-    origin: '*', // Có thể thay '*' bằng domain của bạn như 'https://yourdomain.com'
+    origin: '*',
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
 };
@@ -19,7 +19,6 @@ app.use(cors(corsOptions)); // Cấu hình CORS cho tất cả các route
 // Xử lý các OPTIONS request (preflight request)
 app.options('*', cors(corsOptions)); // Cho phép OPTIONS requests
 
-// Middleware xác thực request từ Shopify
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 
@@ -67,7 +66,7 @@ app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
         res.json({ success: true, products: data.data.products });
     } catch (error) {
         console.error("❌ Lỗi khi gọi API Shopify:", error);
-        res.status(500).json({ success: false, error: "Lỗi khi gọi API Shopify" });
+        res.status(500).json({ success: false, error: `Lỗi khi gọi API Shopify: ${error.message}` });
     }
 });
 
