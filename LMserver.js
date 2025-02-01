@@ -14,13 +14,22 @@ const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN; // Ví dụ: "750
 function verifyShopifyRequest(req, res, next) {
     const hmac = req.headers["x-shopify-hmac-sha256"];
     const body = JSON.stringify(req.body);
-    const digest = crypto.createHmac("sha256", SHOPIFY_SHARED_SECRET).update(body).digest("base64");
 
+    // Tạo HMAC từ body yêu cầu và shared secret
+    const digest = crypto
+        .createHmac("sha256", SHOPIFY_SHARED_SECRET)
+        .update(body)
+        .digest("base64");
+
+    // So sánh HMAC đã tính toán với HMAC trong header
     if (digest !== hmac) {
-        return res.status(401).send("Unauthorized request");
+        console.log("❌ HMAC không hợp lệ");
+        return res.status(401).json({ error: "Unauthorized request" });
     }
+
     next();
 }
+
 
 // Route API Proxy
 app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
