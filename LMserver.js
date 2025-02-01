@@ -23,7 +23,7 @@ function verifyShopifyRequest(req, res, next) {
 }
 
 // Route API Proxy
-app.post("/api/shopify", verifyShopifyRequest, async (req, res) => {
+app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
     console.log("✅ Request từ Shopify:", req.body);
 
     // Xử lý API request, ví dụ: lấy danh sách sản phẩm
