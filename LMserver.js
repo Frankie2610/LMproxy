@@ -26,24 +26,13 @@ const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 function verifyShopifyRequest(req, res, next) {
-    const hmac = req.headers["x-shopify-hmac-sha256"];
-    const body = JSON.stringify(req.body);
 
-    const digest = crypto
-        .createHmac("sha256", SHOPIFY_SHARED_SECRET)
-        .update(body)
-        .digest("base64");
-
-    if (digest !== hmac) {
-        console.log("❌ HMAC không hợp lệ");
-        return res.status(401).json({ error: "Unauthorized request" });
-    }
 
     next();
 }
 
 // Route API Proxy
-app.post("https://lmproxy.vercel.app/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
+app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
     console.log("✅ Request từ Shopify:", req.body);
 
     // Truy vấn API Shopify để lấy thông tin sản phẩm và metafield
@@ -149,6 +138,9 @@ app.post("https://lmproxy.vercel.app/apps/app-proxy", verifyShopifyRequest, asyn
 
         console.log("✅ Updated Total Views:", totalViews);
         res.json({ success: true, totalViews });
+        app.get("/test", (req, res) => {
+            res.json({ message: "API hoạt động bình thường!" });
+        });
     } catch (error) {
         console.error("❌ Lỗi khi gọi API Shopify:", error);
         res.status(500).json({ error: `Lỗi khi gọi API Shopify: ${error.message}` });
