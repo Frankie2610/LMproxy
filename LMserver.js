@@ -6,23 +6,29 @@ const fetch = require("node-fetch"); // Đảm bảo đã cài node-fetch nếu 
 
 const app = express();
 app.use(express.json()); // Hỗ trợ JSON request
-app.use(cors()); // Cho phép CORS
 
-const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET; // Lấy từ Shopify App Settings
-const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN; // Ví dụ: "7501e1-54.myshopify.com"
+// Cấu hình CORS cho phép mọi origin (có thể thay '*' bằng domain của bạn nếu cần)
+const corsOptions = {
+    origin: '*', // Hoặc thay bằng domain của bạn (ví dụ: 'https://yourdomain.com')
+    methods: ['GET', 'POST', 'OPTIONS'], // Các phương thức được phép
+    allowedHeaders: ['Content-Type', 'Authorization'], // Các header được phép
+};
+
+app.use(cors(corsOptions)); // Áp dụng CORS cho tất cả các route
 
 // Middleware xác thực request từ Shopify
+const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
+const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
+
 function verifyShopifyRequest(req, res, next) {
     const hmac = req.headers["x-shopify-hmac-sha256"];
-    const body = JSON.stringify(req.body); // Chuyển body thành chuỗi JSON
+    const body = JSON.stringify(req.body);
 
-    // Tạo HMAC từ body yêu cầu và shared secret
     const digest = crypto
         .createHmac("sha256", SHOPIFY_SHARED_SECRET)
         .update(body)
         .digest("base64");
 
-    // So sánh HMAC đã tính toán với HMAC trong header
     if (digest !== hmac) {
         console.log("❌ HMAC không hợp lệ");
         return res.status(401).json({ error: "Unauthorized request" });
@@ -31,13 +37,15 @@ function verifyShopifyRequest(req, res, next) {
     next();
 }
 
+// Xử lý các OPTIONS request (preflight request)
+app.options('*', cors(corsOptions)); // Cho phép OPTIONS requests
+
 // Route API Proxy
 app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
     console.log("✅ Request từ Shopify:", req.body);
 
-    // Xử lý API request, ví dụ: lấy danh sách sản phẩm
     const shopifyAdminApiUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/graphql.json`;
-    const shopifyAccessToken = process.env.SHOPIFY_ACCESS_TOKEN; // Lấy từ Shopify App Settings
+    const shopifyAccessToken = process.env.SHOPIFY_ACCESS_TOKEN;
 
     try {
         const response = await fetch(shopifyAdminApiUrl, {
@@ -51,7 +59,6 @@ app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
             }),
         });
 
-        // Kiểm tra xem response có trả về dữ liệu hợp lệ không
         if (!response.ok) {
             throw new Error(`API Shopify trả về lỗi: ${response.statusText}`);
         }
