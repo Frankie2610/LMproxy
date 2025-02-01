@@ -2,34 +2,36 @@ require("dotenv").config();
 const express = require("express");
 const crypto = require("crypto");
 const cors = require("cors");
-const fetch = require("node-fetch");
 
 const app = express();
 app.use(express.json()); // Hỗ trợ JSON request
 
-// Cấu hình CORS để cho phép tất cả các domain (hoặc thay '*' bằng domain của bạn như 'https://yourdomain.com')
+// Cấu hình CORS để tránh lỗi preflight request
 const corsOptions = {
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: "*", // Hoặc thay bằng domain cụ thể của bạn
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-shopify-hmac-sha256"],
 };
-
-app.use(cors(corsOptions)); // Cấu hình CORS cho tất cả các route
-
-// Xử lý các OPTIONS request (preflight request)
-app.options('*', cors(corsOptions)); // Cho phép OPTIONS requests
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
+if (!SHOPIFY_SHARED_SECRET || !SHOPIFY_STORE_DOMAIN || !SHOPIFY_ACCESS_TOKEN) {
+    console.error("❌ Lỗi: Chưa cấu hình đầy đủ biến môi trường!");
+}
+
+// Middleware xác thực request từ Shopify
 function verifyShopifyRequest(req, res, next) {
     const hmac = req.headers["x-shopify-hmac-sha256"];
-    const body = JSON.stringify(req.body);
+    if (!hmac) {
+        return res.status(400).json({ error: "Thiếu header HMAC" });
+    }
 
-    const digest = crypto
-        .createHmac("sha256", SHOPIFY_SHARED_SECRET)
-        .update(body)
-        .digest("base64");
+    const body = JSON.stringify(req.body);
+    const digest = crypto.createHmac("sha256", SHOPIFY_SHARED_SECRET).update(body).digest("base64");
 
     if (digest !== hmac) {
         console.log("❌ HMAC không hợp lệ");
@@ -40,18 +42,17 @@ function verifyShopifyRequest(req, res, next) {
 }
 
 // Route API Proxy
-app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
+app.post("/api/shopify", verifyShopifyRequest, async (req, res) => {
     console.log("✅ Request từ Shopify:", req.body);
 
     const shopifyAdminApiUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/graphql.json`;
-    const shopifyAccessToken = process.env.SHOPIFY_ACCESS_TOKEN;
 
     try {
         const response = await fetch(shopifyAdminApiUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "X-Shopify-Access-Token": shopifyAccessToken,
+                "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
             },
             body: JSON.stringify({
                 query: `{ products(first: 5) { edges { node { id title } } } }`,
@@ -70,8 +71,5 @@ app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
     }
 });
 
-// Chạy server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Backend chạy tại http://localhost:${PORT}`);
-});
+// Export app để Vercel có thể xử lý
+module.exports = app;
