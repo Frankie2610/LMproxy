@@ -1,154 +1,158 @@
+import dotenv from "dotenv";
 import express from "express";
 import crypto from "crypto";
 import cors from "cors";
-import fetch from "node-fetch";  // Thay 'require' thành 'import'
+import fetch from "node-fetch";
 
-import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
 app.use(express.json()); // Hỗ trợ JSON request
 
-// Cấu hình CORS để cho phép tất cả các domain (hoặc thay '*' bằng domain của bạn)
+// Cấu hình CORS
 const corsOptions = {
-    origin: '*',
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: "*",
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
 };
-
-app.use(cors(corsOptions)); // Cấu hình CORS cho tất cả các route
-
-// Xử lý các OPTIONS request (preflight request)
-app.options('*', cors(corsOptions)); // Cho phép OPTIONS requests
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
+// ✅ Hàm xác thực request từ Shopify bằng HMAC
 function verifyShopifyRequest(req, res, next) {
+    const hmac = req.headers["x-shopify-hmac-sha256"];
+    if (!hmac) {
+        return res.status(400).json({ error: "Thiếu HMAC header" });
+    }
 
+    const body = JSON.stringify(req.body);
+    const digest = crypto.createHmac("sha256", SHOPIFY_SHARED_SECRET).update(body).digest("base64");
+
+    if (digest !== hmac) {
+        console.log("❌ HMAC không hợp lệ");
+        return res.status(401).json({ error: "Unauthorized request" });
+    }
 
     next();
 }
 
-// Route API Proxy
+// ✅ Route chính của App Proxy
 app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
-    console.log("✅ Request từ Shopify:", req.body);
+    const { action, productGid, totalViews } = req.body;
 
-    // Truy vấn API Shopify để lấy thông tin sản phẩm và metafield
+    console.log("📡 Nhận request:", req.body);
+
+    if (!action) {
+        return res.status(400).json({ error: "Lỗi: action is not defined" });
+    }
+
     const shopifyAdminApiUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/graphql.json`;
 
     try {
-        const response = await fetch(shopifyAdminApiUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-            },
-            body: JSON.stringify({
-                query: `{ 
-                    products(first: 5) { 
-                        edges { 
-                            node { 
+        if (action === "get_metafield") {
+            console.log("🔍 Gọi API Shopify để lấy total_views");
+
+            const response = await fetch(shopifyAdminApiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+                },
+                body: JSON.stringify({
+                    query: `{ 
+                        product(id: "${productGid}") { 
+                            id 
+                            metafield(namespace: "custom", key: "total_views") { 
                                 id 
-                                title 
-                                metafield(namespace: "custom", key: "total_views") { 
-                                    id 
-                                    value 
-                                } 
+                                value 
                             } 
                         } 
-                    } 
-                }`,
-            }),
-        });
+                    }`,
+                }),
+            });
 
-        if (!response.ok) {
-            throw new Error(`API Shopify trả về lỗi: ${response.statusText}`);
-        }
+            const data = await response.json();
+            const product = data.data?.product;
 
-        const data = await response.json();
-        const product = data.data.products.edges[0]?.node;
-
-        if (!product) {
-            return res.status(404).json({ error: "Không tìm thấy sản phẩm" });
-        }
-
-        // Lấy metafield total_views
-        let totalViews = 0;
-        if (product.metafield) {
-            const metafieldValue = JSON.parse(product.metafield.value);
-            totalViews = Array.isArray(metafieldValue) ? metafieldValue[0] : 0;
-        }
-
-        console.log("✅ Current Total Views:", totalViews);
-
-        // Tăng lượt xem lên 1
-        totalViews++;
-
-        // Cập nhật metafield trong Shopify
-        const updateQuery = `
-        mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
-          metafieldsSet(metafields: $metafields) {
-            metafields {
-              id
-              namespace
-              key
-              value
-              type
+            if (!product || !product.metafield) {
+                return res.status(404).json({ error: "Không tìm thấy metafield total_views" });
             }
-            userErrors {
-              field
-              message
-            }
-          }
-        }
-        `;
 
-        const variables = {
-            metafields: [
-                {
-                    ownerId: product.id,
-                    namespace: "custom",
-                    key: "total_views",
-                    type: "list.number_integer",
-                    value: JSON.stringify([totalViews]),
+            let totalViews = parseInt(product.metafield.value) || 0;
+            console.log("✅ Total Views hiện tại:", totalViews);
+
+            return res.json({ success: true, totalViews });
+        }
+
+        if (action === "update_metafield") {
+            if (!totalViews || !productGid) {
+                return res.status(400).json({ error: "Thiếu thông tin cập nhật" });
+            }
+
+            console.log("📡 Đang cập nhật total_views:", totalViews);
+
+            const updateQuery = `
+            mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+                metafieldsSet(metafields: $metafields) {
+                    metafields {
+                        id
+                        namespace
+                        key
+                        value
+                        type
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }`;
+
+            const variables = {
+                metafields: [
+                    {
+                        ownerId: productGid,
+                        namespace: "custom",
+                        key: "total_views",
+                        type: "integer",
+                        value: `${totalViews}`,
+                    },
+                ],
+            };
+
+            const updateResponse = await fetch(shopifyAdminApiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
                 },
-            ],
-        };
+                body: JSON.stringify({ query: updateQuery, variables }),
+            });
 
-        const updateResponse = await fetch(shopifyAdminApiUrl, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-            },
-            body: JSON.stringify({
-                query: updateQuery,
-                variables: variables,
-            }),
-        });
+            const updateData = await updateResponse.json();
 
-        const updateData = await updateResponse.json();
+            if (updateData.errors) {
+                console.error("❌ Error updating metafield:", updateData.errors);
+                return res.status(500).json({ error: "Lỗi khi cập nhật metafield" });
+            }
 
-        if (updateData.errors) {
-            console.error("❌ Error updating metafield:", updateData.errors);
-            return res.status(500).json({ error: "Lỗi khi cập nhật metafield" });
+            console.log("✅ Đã cập nhật total_views:", totalViews);
+            return res.json({ success: true, totalViews });
         }
 
-        console.log("✅ Updated Total Views:", totalViews);
-        res.json({ success: true, totalViews });
-        app.get("/test", (req, res) => {
-            res.json({ message: "API hoạt động bình thường!" });
-        });
+        return res.status(400).json({ error: "Lỗi: Action không hợp lệ" });
     } catch (error) {
         console.error("❌ Lỗi khi gọi API Shopify:", error);
         res.status(500).json({ error: `Lỗi khi gọi API Shopify: ${error.message}` });
     }
 });
 
-// Chạy server
+// 🚀 Khởi động server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Backend chạy tại http://localhost:${PORT}`);
+    console.log(`🚀 Backend đang chạy tại http://localhost:${PORT}`);
 });
