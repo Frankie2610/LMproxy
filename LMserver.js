@@ -7,14 +7,17 @@ const fetch = require("node-fetch"); // Đảm bảo đã cài node-fetch nếu 
 const app = express();
 app.use(express.json()); // Hỗ trợ JSON request
 
-// Cấu hình CORS cho phép mọi origin (có thể thay '*' bằng domain của bạn nếu cần)
+// Cấu hình CORS để cho phép tất cả các domain (hoặc thay '*' bằng domain của bạn)
 const corsOptions = {
-    origin: '*', // Hoặc thay bằng domain của bạn (ví dụ: 'https://yourdomain.com')
-    methods: ['GET', 'POST', 'OPTIONS'], // Các phương thức được phép
-    allowedHeaders: ['Content-Type', 'Authorization'], // Các header được phép
+    origin: '*', // Có thể thay '*' bằng domain của bạn như 'https://yourdomain.com'
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
-app.use(cors(corsOptions)); // Áp dụng CORS cho tất cả các route
+app.use(cors(corsOptions)); // Cấu hình CORS cho tất cả các route
+
+// Xử lý các OPTIONS request (preflight request)
+app.options('*', cors(corsOptions)); // Cho phép OPTIONS requests
 
 // Middleware xác thực request từ Shopify
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
@@ -36,9 +39,6 @@ function verifyShopifyRequest(req, res, next) {
 
     next();
 }
-
-// Xử lý các OPTIONS request (preflight request)
-app.options('*', cors(corsOptions)); // Cho phép OPTIONS requests
 
 // Route API Proxy
 app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
