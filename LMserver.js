@@ -43,7 +43,7 @@ function verifyShopifyRequest(req, res, next) {
 }
 
 // Route API Proxy
-app.post("/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
+app.post("https://lmproxy.vercel.app/apps/app-proxy", verifyShopifyRequest, async (req, res) => {
     console.log("✅ Request từ Shopify:", req.body);
 
     // Truy vấn API Shopify để lấy thông tin sản phẩm và metafield
