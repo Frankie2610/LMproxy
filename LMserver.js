@@ -1,8 +1,10 @@
-require("dotenv").config();
-const express = require("express");
-const crypto = require("crypto");
-const cors = require("cors");
-const fetch = require("node-fetch");
+import express from "express";
+import crypto from "crypto";
+import cors from "cors";
+import fetch from "node-fetch";  // Thay 'require' thành 'import'
+
+import dotenv from "dotenv";
+dotenv.config();
 
 const app = express();
 app.use(express.json()); // Hỗ trợ JSON request
