@@ -29,7 +29,7 @@ function verifyShopifyRequest(req, res, next) {
 
     const hmac = req.headers["x-shopify-hmac-sha256"];
     if (!hmac) {
-        return res.status(400).json({ error: "Thiếu HMAC header" });
+        return res.status(400).json({ error: "Thiếu HMAC headerrrr" });
     }
 
     const body = JSON.stringify(req.body);
