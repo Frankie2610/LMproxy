@@ -1,35 +1,38 @@
-import cors from 'cors'; // Import middleware CORS
+import cors from 'cors';
 import express from 'express';
 
 const app = express();
-
-// 🚀 Cấu hình CORS
-app.use(cors({
-    origin: '*', // 👈 Cho phép mọi domain truy cập API
-    methods: ['GET', 'POST', 'OPTIONS'], // 👈 Cho phép các phương thức cần thiết
-    allowedHeaders: ['Content-Type', 'Authorization'], // 👈 Chỉ định các headers hợp lệ
-}));
-
+app.use(cors({ origin: '*', methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Content-Type'] }));
 app.use(express.json());
 
-// Route API chính
+// 🔹 Fake database lưu số lượt xem sản phẩm (chỉ dùng tạm, cần thay bằng database thật)
+const productViews = {};
+
+// 🛠 API xử lý lượt xem sản phẩm
 app.post('/api/LMserver.js', async (req, res) => {
     try {
-        const { action, productGid, totalViews } = req.body;
+        const { action, productGid } = req.body;
+
+        if (!productGid) {
+            return res.status(400).json({ success: false, error: "Thiếu productGid" });
+        }
 
         if (action === "get_metafield") {
-            // 🛠 Lấy total_views
-            return res.json({ success: true, totalViews: 100 }); // Fake data
+            // 🛠 Lấy số lượt xem hiện tại
+            const totalViews = productViews[productGid] || 0;
+            return res.json({ success: true, totalViews });
         }
 
         if (action === "update_metafield") {
-            // 🛠 Cập nhật total_views
-            return res.json({ success: true, message: "Updated total_views successfully" });
+            // 🔼 Tăng số lượt xem
+            productViews[productGid] = (productViews[productGid] || 0) + 1;
+            return res.json({ success: true, totalViews: productViews[productGid] });
         }
 
-        res.status(400).json({ error: "Invalid action" });
+        res.status(400).json({ success: false, error: "Invalid action" });
     } catch (error) {
-        res.status(500).json({ error: "Internal Server Error" });
+        console.error("❌ Server Error:", error);
+        res.status(500).json({ success: false, error: "Internal Server Error" });
     }
 });
 
@@ -38,5 +41,5 @@ app.options('/api/LMserver.js', (req, res) => {
     res.sendStatus(200);
 });
 
-// Khởi chạy server
+// 🚀 Khởi chạy server
 export default app;
