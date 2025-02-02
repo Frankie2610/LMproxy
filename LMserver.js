@@ -132,7 +132,7 @@ app.post("/apps/app-proxy", async (req, res) => {
                 console.error("❌ Error updating metafield:", updateData.errors);
                 return res.status(500).json({ error: "Lỗi khi cập nhật metafield" });
             }
-            console.log("Errors", updateData.data.metafieldsSet.userErrors)
+            console.log("Errors", updateData.data.metafieldsSet.metafields)
             console.log("✅ Đã cập nhật total_views:", totalViews);
             return res.json({ success: true, totalViews });
         }
