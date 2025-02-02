@@ -149,7 +149,10 @@ app.post("/apps/app-proxy", async (req, res) => {
 });
 
 // 🚀 Khởi động server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-});
+// const PORT = process.env.PORT || 3000;
+// app.listen(PORT, () => {
+//     console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+// });
+
+// Cấu hình để Vercel không yêu cầu `listen()`
+export default app;
