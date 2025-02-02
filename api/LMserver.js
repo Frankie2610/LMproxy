@@ -9,7 +9,7 @@ app.use(express.json());
 let viewsData = {};
 
 // ✅ API xử lý lấy & cập nhật total_views
-app.post('/api/LMserver', async (req, res) => {
+app.post('/api/LMserver.js', async (req, res) => {
     try {
         const { action, productGid } = req.body;
 
@@ -34,7 +34,7 @@ app.post('/api/LMserver', async (req, res) => {
 });
 
 // ✅ Xử lý OPTIONS request để tránh lỗi CORS preflight
-app.options('/api/LMserver', (req, res) => res.sendStatus(200));
+app.options('/api/LMserver.js', (req, res) => res.sendStatus(200));
 
 // 🚀 Khởi chạy server
 export default app;
