@@ -39,7 +39,7 @@ function verifyShopifyRequest(req, res, next) {
 }
 
 // ✅ Route chính của App Proxy
-app.post("/apps/app-proxy", async (req, res) => {
+app.post("/LMserver.js", async (req, res) => {
     console.log("📡 Nhận request:", JSON.stringify(req.body, null, 2));
 
     const { action, productGid, totalViews } = req.body;
