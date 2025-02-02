@@ -1,13 +1,9 @@
 {
-    "version": 2,
-    "builds": [
-      { "src": "LMserver.js", "use": "@vercel/node" }
-    ],
-    "routes": [
-    {
-      "src": "/apps/app-proxy",
-      "dest": "/api/apps/app-proxy"
-    }
+  "version": 2,
+  "builds": [
+    { "src": "LMserver.js", "use": "@vercel/node" }
+  ],
+  "routes": [
+    { "src": "/apps/app-proxy", "dest": "/LMserver.js" }
   ]
-  }
-  
+}
