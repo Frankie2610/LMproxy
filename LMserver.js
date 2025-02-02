@@ -64,7 +64,7 @@ app.post("/apps/app-proxy", async (req, res) => {
                     query: `{
                         product(id: "${productGid}") { 
                             id 
-                            metafield(namespace: "custom", key: "total_views") { id value } 
+                            metafields(namespace: "custom", key: "total_views") { id value } 
                         } 
                     }`,
                 }),
@@ -109,8 +109,8 @@ app.post("/apps/app-proxy", async (req, res) => {
                         ownerId: productGid, // 🔥 Sửa lại đúng field
                         namespace: "custom",
                         key: "total_views",
-                        type: "integer",
-                        value: `${totalViews}+3` + 3,
+                        type: "list.number_integer", // Đã sửa type thành list.number_integer
+                        value: `${totalViews}`, // Đảm bảo value là một mảng
                     },
                 ],
             };
@@ -126,12 +126,13 @@ app.post("/apps/app-proxy", async (req, res) => {
 
             const updateData = await updateResponse.json();
             console.log("📡 Update Response:", JSON.stringify(updateData, null, 2));
+            console.log("Update data thành công", updateData);
 
             if (updateData.errors) {
                 console.error("❌ Error updating metafield:", updateData.errors);
                 return res.status(500).json({ error: "Lỗi khi cập nhật metafield" });
             }
-            console.log("updateDataaa", updateData)
+            console.log("Errors", updateData.data.metafieldsSet.userErrors)
             console.log("✅ Đã cập nhật total_views:", totalViews);
             return res.json({ success: true, totalViews });
         }
