@@ -9,6 +9,10 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+    origin: '*',  // Hoặc bạn có thể chỉ định các domain hợp lệ ở đây
+}));
+
 
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
