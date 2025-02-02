@@ -13,7 +13,7 @@ app.use(cors({
 app.use(express.json());
 
 // Route API chính
-app.post('/api/LMserver', async (req, res) => {
+app.post('/api/LMserver.js', async (req, res) => {
     try {
         const { action, productGid, totalViews } = req.body;
 
@@ -34,7 +34,7 @@ app.post('/api/LMserver', async (req, res) => {
 });
 
 // ✅ Xử lý OPTIONS request để tránh lỗi Preflight CORS
-app.options('/api/LMserver', (req, res) => {
+app.options('/api/LMserver.js', (req, res) => {
     res.sendStatus(200);
 });
 
