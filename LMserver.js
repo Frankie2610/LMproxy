@@ -7,29 +7,20 @@ import fetch from "node-fetch";
 dotenv.config();
 
 const app = express();
-app.use(express.json()); // Hỗ trợ JSON request
-app.use(express.urlencoded({ extended: true })); // Hỗ trợ x-www-form-urlencoded
-
-// Cấu hình CORS (chỉ cho phép Shopify gọi API)
-const corsOptions = {
-    origin: [`https://${process.env.SHOPIFY_STORE_DOMAIN}`],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Shopify-Hmac-Sha256"],
-};
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// ✅ Hàm xác thực request từ Shopify bằng HMAC
+// ✅ Middleware kiểm tra request từ Shopify
 function verifyShopifyRequest(req, res, next) {
     console.log("📡 Headers:", req.headers);
 
     const hmac = req.headers["x-shopify-hmac-sha256"];
     if (!hmac) {
-        return res.status(400).json({ error: "Thiếu HMAC headerrrr" });
+        return res.status(400).json({ error: "Thiếu HMAC header" });
     }
 
     const body = JSON.stringify(req.body);
@@ -53,8 +44,8 @@ app.post("/apps/app-proxy", async (req, res) => {
         return res.status(400).json({ error: "Lỗi: action is not defined" });
     }
 
-    if (!productGid) {
-        return res.status(400).json({ error: "Lỗi: productGid is missing" });
+    if (!productGid || !productGid.startsWith("gid://shopify/Product/")) {
+        return res.status(400).json({ error: "Lỗi: productGid không hợp lệ" });
     }
 
     const shopifyAdminApiUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/graphql.json`;
@@ -101,11 +92,8 @@ app.post("/apps/app-proxy", async (req, res) => {
             mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
                 metafieldsSet(metafields: $metafields) {
                     metafields {
-                        productGid
-                        namespace
-                        key
+                        id
                         value
-                        type
                     }
                     userErrors {
                         field
@@ -117,7 +105,7 @@ app.post("/apps/app-proxy", async (req, res) => {
             const variables = {
                 metafields: [
                     {
-                        productGid: productGid,
+                        ownerId: productGid, // 🔥 Sửa lại đúng field
                         namespace: "custom",
                         key: "total_views",
                         type: "integer",
