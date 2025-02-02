@@ -77,7 +77,8 @@ app.post("/apps/app-proxy", async (req, res) => {
                 return res.status(404).json({ error: "Không tìm thấy metafield total_views" });
             }
 
-            let totalViews = parseInt(data.data.product.metafield.value) || 0;
+            let totalViews = parseInt(+data.data.product.metafield.value[1]);
+            console.log(totalViews)
             return res.json({ success: true, totalViews });
         }
 
@@ -109,7 +110,7 @@ app.post("/apps/app-proxy", async (req, res) => {
                         namespace: "custom",
                         key: "total_views",
                         type: "integer",
-                        value: `${totalViews}`,
+                        value: `${totalViews}+3` + 3,
                     },
                 ],
             };
@@ -130,7 +131,7 @@ app.post("/apps/app-proxy", async (req, res) => {
                 console.error("❌ Error updating metafield:", updateData.errors);
                 return res.status(500).json({ error: "Lỗi khi cập nhật metafield" });
             }
-
+            console.log("updateDataaa", updateData)
             console.log("✅ Đã cập nhật total_views:", totalViews);
             return res.json({ success: true, totalViews });
         }
