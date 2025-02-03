@@ -1,63 +1,58 @@
-import cors from 'cors';
-import express from 'express';
+import dotenv from "dotenv";
+import express from "express";
+import crypto from "crypto";
+import cors from "cors";
+import fetch from "node-fetch";
+
+dotenv.config();
 
 const app = express();
-app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-/** 
- * 🔐 Middleware xác thực HMAC từ Shopify
- * 👉 Nếu test bằng Postman, đặt `SKIP_HMAC_CHECK = true` trong `.env`
- */
+// ✅ Middleware kiểm tra request từ Shopify
 function verifyShopifyRequest(req, res, next) {
-    if (process.env.SKIP_HMAC_CHECK === "true") {
-        console.log("⚠️ Bỏ qua kiểm tra HMAC (chỉ dùng khi test Postman)");
-        return next();
-    }
+    console.log("📡 Headers:", req.headers);
 
     const hmac = req.headers["x-shopify-hmac-sha256"];
-    if (!hmac) return res.status(401).json({ error: "Thiếu HMAC header" });
+    if (!hmac) {
+        return res.status(400).json({ error: "Thiếu HMAC header" });
+    }
 
     const body = JSON.stringify(req.body);
     const digest = crypto.createHmac("sha256", SHOPIFY_SHARED_SECRET).update(body).digest("base64");
 
     if (digest !== hmac) {
-        console.log("❌ HMAC không hợp lệ");
+        console.log("❌ HMAC không hợp lệ. Expected:", digest, "Received:", hmac);
         return res.status(401).json({ error: "Unauthorized request" });
     }
 
     next();
 }
 
-/**
- * 📡 API Proxy - Nhận request từ Shopify
- */
+// ✅ Route chính của App Proxy
 app.post("/api/LMserver.js", async (req, res) => {
-    console.log("✅ Nhận request từ Shopify:", req.body);
+    console.log("📡 Nhận request:", JSON.stringify(req.body, null, 2));
 
-    const { action, productGid } = req.body;
-    if (!productGid) return res.status(400).json({ error: "Thiếu productGid" });
+    const { action, productGid, totalViews } = req.body;
+
+    if (!action) {
+        return res.status(400).json({ error: "Lỗi: action is not defined" });
+    }
+
+    if (!productGid || !productGid.startsWith("gid://shopify/Product/")) {
+        return res.status(400).json({ error: "Lỗi: productGid không hợp lệ" });
+    }
 
     const shopifyAdminApiUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/graphql.json`;
 
     try {
         if (action === "get_metafield") {
-            // 📤 Lấy total_views từ metafield
-            const query = `
-            {
-                product(id: "${productGid}") {
-                    id
-                    title
-                    metafield(namespace: "custom", key: "total_views") {
-                        id
-                        value
-                    }
-                }
-            }`;
+            console.log("🔍 Đang lấy metafield từ Shopify cho productGid:", productGid);
 
             const response = await fetch(shopifyAdminApiUrl, {
                 method: "POST",
@@ -65,23 +60,34 @@ app.post("/api/LMserver.js", async (req, res) => {
                     "Content-Type": "application/json",
                     "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
                 },
-                body: JSON.stringify({ query }),
+                body: JSON.stringify({
+                    query: `{
+                        product(id: "${productGid}") { 
+                            id 
+                            metafield(namespace: "custom", key: "total_views") { id value } 
+                        } 
+                    }`,
+                }),
             });
 
             const data = await response.json();
-            const product = data.data.product;
+            console.log("🔍 Shopify API Response:", JSON.stringify(data, null, 2));
 
-            if (!product) return res.status(404).json({ error: "Không tìm thấy sản phẩm" });
+            if (!data.data?.product?.metafield) {
+                return res.status(404).json({ error: "Không tìm thấy metafield total_views" });
+            }
 
-            let totalViews = product.metafield ? parseInt(product.metafield.value) : 0;
-            console.log(`📊 Sản phẩm: ${product.title}, Lượt xem: ${totalViews}`);
-
+            let totalViews = Array.isArray(data.data.product.metafield.value) ? parseInt(data.data.product.metafield.value[0]) : parseInt(data.data.product.metafield.value);
+            console.log(totalViews)
             return res.json({ success: true, totalViews });
         }
 
         if (action === "update_metafield") {
-            // 📤 Cập nhật total_views lên Shopify
-            let totalViews = req.body.totalViews || 0;
+            if (!totalViews) {
+                return res.status(400).json({ error: "Lỗi: Thiếu totalViews để cập nhật" });
+            }
+
+            console.log("📡 Đang cập nhật total_views:", totalViews);
 
             const updateQuery = `
             mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
@@ -100,11 +106,11 @@ app.post("/api/LMserver.js", async (req, res) => {
             const variables = {
                 metafields: [
                     {
-                        ownerId: productGid,
+                        ownerId: productGid, // 🔥 Sửa lại đúng field
                         namespace: "custom",
                         key: "total_views",
-                        type: "integer",
-                        value: `${totalViews}`,
+                        type: "list.number_integer", // Đã sửa type thành list.number_integer
+                        value: [parseInt(totalViews)], // Đảm bảo value là mảng số nguyên
                     },
                 ],
             };
@@ -119,22 +125,30 @@ app.post("/api/LMserver.js", async (req, res) => {
             });
 
             const updateData = await updateResponse.json();
+            console.log("📡 Update Response:", JSON.stringify(updateData, null, 2));
 
             if (updateData.errors || updateData.data.metafieldsSet.userErrors.length > 0) {
-                console.error("❌ Lỗi khi cập nhật metafield:", updateData);
+                console.error("❌ Error updating metafield:", updateData.errors || updateData.data.metafieldsSet.userErrors);
                 return res.status(500).json({ error: "Lỗi khi cập nhật metafield" });
             }
 
-            console.log(`✅ Đã cập nhật total_views: ${totalViews}`);
+            console.log("✅ Đã cập nhật total_views:", totalViews);
             return res.json({ success: true, totalViews });
         }
 
-        return res.status(400).json({ error: "Action không hợp lệ" });
+        return res.status(400).json({ error: "Lỗi: Action không hợp lệ" });
     } catch (error) {
-        console.error("❌ Lỗi khi gọi API Shopify:", error);
-        res.status(500).json({ error: `Lỗi: ${error.message}` });
+        console.error("❌ Shopify API Lỗi:", error);
+        res.status(500).json({ error: "Lỗi khi gọi Shopify API" });
     }
 });
+
+// 🚀 Khởi động server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+});
+
 
 app.options('/api/LMserver.js', (req, res) => res.sendStatus(200));
 
