@@ -50,7 +50,7 @@ app.post('/api/LMserver.js', async (req, res) => {
             // Phân tích chuỗi JSON để lấy mảng số nguyên
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
             // Lấy giá trị số nguyên đầu tiên trong mảng
-            totalViews = totalViewsArray[0] || 0;
+            totalViews = +totalViewsArray[0] || 0;
             console.log(totalViews);
 
         }
@@ -68,7 +68,7 @@ app.post('/api/LMserver.js', async (req, res) => {
                     namespace: "custom",
                     key: "total_views",
                     type: "list.number_integer",
-                    value: "[${totalViews}+1]"
+                    value: "${totalViews}+1"
                 }
             ]) {
                 metafields {
