@@ -55,8 +55,6 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         }
 
-        // Tăng số lượt xem lên 1
-        totalViews += 1;
 
         // Chuyển đổi giá trị thành mảng JSON
         const totalViewsArray = JSON.stringify([totalViews]);
@@ -70,7 +68,7 @@ app.post('/api/LMserver.js', async (req, res) => {
                     namespace: "custom",
                     key: "total_views",
                     type: "list.number_integer",
-                    value: "${totalViewsArray}"
+                    value: "${totalViewsArray}+1"
                 }
             ]) {
                 metafields {
