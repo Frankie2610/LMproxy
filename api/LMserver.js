@@ -52,7 +52,7 @@ app.post('/api/LMserver.js', async (req, res) => {
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
             // Lấy giá trị số nguyên đầu tiên trong mảng
             totalViews = +totalViewsArray[0] || 0;
-            newTotalViews = totalViews + 1;
+            newTotalViews = totalViews + 1 / 2;
             console.log(totalViews);
 
         }
