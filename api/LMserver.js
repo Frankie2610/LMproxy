@@ -46,18 +46,20 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         // Kiểm tra xem metafield có tồn tại không
         let totalViews = 0;
+        let newTotalViews = 0;
         if (data.data?.product?.metafield?.value) {
             // Phân tích chuỗi JSON để lấy mảng số nguyên
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
             // Lấy giá trị số nguyên đầu tiên trong mảng
             totalViews = +totalViewsArray[0] || 0;
+            newTotalViews = totalViews + 1;
             console.log(totalViews);
 
         }
 
 
         // Chuyển đổi giá trị thành mảng JSON
-        const totalViewsArray = JSON.stringify([totalViews]);
+        const newTotalViewsArray = JSON.stringify([newTotalViews]);
 
         // Cập nhật metafield 'total_views' của sản phẩm
         const mutation = `
@@ -68,7 +70,7 @@ app.post('/api/LMserver.js', async (req, res) => {
                     namespace: "custom",
                     key: "total_views",
                     type: "list.number_integer",
-                    value: "${totalViews}"
+                    value: "${newTotalViewsArray}"
                 }
             ]) {
                 metafields {
@@ -101,7 +103,7 @@ app.post('/api/LMserver.js', async (req, res) => {
             });
         }
 
-        res.json({ success: true, totalViews });
+        res.json({ success: true, totalViews: newTotalViews });
         return;
     } catch (error) {
         console.error('Lỗi:', error);
