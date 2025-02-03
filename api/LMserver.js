@@ -57,9 +57,6 @@ app.post('/api/LMserver.js', async (req, res) => {
         }
 
 
-        // Chuyển đổi giá trị thành mảng JSON
-        const newTotalViewsArray = JSON.stringify([totalViews + 1]);
-
         // Cập nhật metafield 'total_views' của sản phẩm
         const mutation = `
         mutation {
@@ -69,7 +66,7 @@ app.post('/api/LMserver.js', async (req, res) => {
                     namespace: "custom",
                     key: "total_views",
                     type: "list.number_integer",
-                    value: "${newTotalViewsArray}"
+                    value: "[${totalViews + 1}]"
                 }
             ]) {
                 metafields {
