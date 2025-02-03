@@ -56,10 +56,10 @@ app.post('/api/LMserver.js', async (req, res) => {
         }
 
         // Tăng số lượt xem lên 1
-        const newTotalViews = totalViews + 1;
+        totalViews = totalViews + 1;
 
         // Chuyển đổi giá trị thành mảng JSON
-        const totalViewsArray = JSON.stringify([newTotalViews]);
+        const totalViewsArray = JSON.stringify([totalViews]);
 
         // Cập nhật metafield 'total_views' của sản phẩm
         const mutation = `
@@ -103,7 +103,7 @@ app.post('/api/LMserver.js', async (req, res) => {
             });
         }
 
-        res.json({ success: true, totalViews: newTotalViews });
+        res.json({ success: true, totalViews });
     } catch (error) {
         console.error('Lỗi:', error);
         res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
