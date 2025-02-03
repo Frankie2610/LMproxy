@@ -46,7 +46,6 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         // Kiểm tra xem metafield có tồn tại không
         let totalViews = 0;
-        let newTotalViews = 0;
         if (data.data?.product?.metafield?.value) {
             // Phân tích chuỗi JSON để lấy mảng số nguyên
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
@@ -89,16 +88,6 @@ app.post('/api/LMserver.js', async (req, res) => {
             },
             body: JSON.stringify({ query: mutation }),
         });
-
-        const updateData = await updateResponse.json();
-
-        if (updateData.errors || updateData.data.metafieldsSet.userErrors.length > 0) {
-            return res.status(500).json({
-                error: 'Lỗi khi cập nhật metafield',
-                details: updateData.errors || updateData.data.metafieldsSet.userErrors,
-            });
-        }
-
         res.json({ success: true, totalViews });
         return;
     } catch (error) {
