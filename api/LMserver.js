@@ -56,7 +56,7 @@ app.post('/api/LMserver.js', async (req, res) => {
         }
 
         // Tăng số lượt xem lên 1
-        totalViews = totalViews + 1;
+        totalViews += 1;
 
         // Chuyển đổi giá trị thành mảng JSON
         const totalViewsArray = JSON.stringify([totalViews]);
@@ -104,6 +104,7 @@ app.post('/api/LMserver.js', async (req, res) => {
         }
 
         res.json({ success: true, totalViews });
+        return;
     } catch (error) {
         console.error('Lỗi:', error);
         res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
