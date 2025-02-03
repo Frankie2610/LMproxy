@@ -1,15 +1,9 @@
-require("dotenv").config();
-const express = require("express");
-const crypto = require("crypto");
-const cors = require("cors");
-const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args)); // Fix lỗi ESM
+import cors from 'cors';
+import express from 'express';
 
 const app = express();
-app.use(express.json()); // Hỗ trợ JSON request
-
-// Cấu hình CORS
-app.use(cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization"] }));
-app.options("*", cors()); // Xử lý preflight request
+app.use(cors({ origin: '*', methods: ['GET', 'POST'], allowedHeaders: ['Content-Type'] }));
+app.use(express.json());
 
 const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
