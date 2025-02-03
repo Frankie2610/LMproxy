@@ -68,7 +68,7 @@ app.post('/api/LMserver.js', async (req, res) => {
                     namespace: "custom",
                     key: "total_views",
                     type: "list.number_integer",
-                    value: "${totalViews}+1"
+                    value: "${totalViews}"
                 }
             ]) {
                 metafields {
