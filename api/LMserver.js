@@ -136,8 +136,6 @@ app.post("/api/LMserver.js", async (req, res) => {
     }
 });
 
-// 🚀 Khởi động server
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-});
+app.options('/api/LMserver.js', (req, res) => res.sendStatus(200));
+
+export default app;
