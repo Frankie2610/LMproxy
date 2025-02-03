@@ -45,14 +45,12 @@ app.post('/api/LMserver.js', async (req, res) => {
         const data = await response.json();
 
         // Kiểm tra xem metafield có tồn tại không
-        let totalViews = 0;
+        let totalViews = Number;
         if (data.data?.product?.metafield?.value) {
             // Phân tích chuỗi JSON để lấy mảng số nguyên
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
             // Lấy giá trị số nguyên đầu tiên trong mảng
             totalViews = +totalViewsArray[0] || 0;
-            console.log(totalViews);
-
         }
 
 
