@@ -57,6 +57,7 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         // Tăng số lượt xem lên 1
         const newTotalViews = totalViews + 1;
+        console.log(newTotalViews);
 
         // Chuyển đổi giá trị thành mảng JSON
         const totalViewsArray = JSON.stringify([newTotalViews]);
