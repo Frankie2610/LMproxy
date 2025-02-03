@@ -103,7 +103,7 @@ app.post('/api/LMserver.js', async (req, res) => {
             });
         }
 
-        res.json({ success: true, totalViews: newTotalViews });
+        res.json({ success: true, totalViews });
         return;
     } catch (error) {
         console.error('Lỗi:', error);
