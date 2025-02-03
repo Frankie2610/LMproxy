@@ -20,6 +20,8 @@ app.post("/api/LMserver.js", async (req, res) => {
     console.log("📡 Nhận request:", JSON.stringify(req.body, null, 2));
 
     const { action, productGid, totalViews } = req.body;
+    console.log(action, productGid, totalViews);
+
     if (!action) return res.status(400).json({ error: "Thiếu action" });
     if (!productGid?.startsWith("gid://shopify/Product/")) return res.status(400).json({ error: "productGid không hợp lệ" });
 
