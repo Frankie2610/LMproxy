@@ -1,101 +1,149 @@
-import express from "express";
-import cors from "cors";
-import fetch from "node-fetch";
-import dotenv from "dotenv";
+require("dotenv").config();
+const express = require("express");
+const crypto = require("crypto");
+const cors = require("cors");
+const fetch = (...args) => import("node-fetch").then(({ default: fetch }) => fetch(...args)); // Fix lỗi ESM
 
-dotenv.config();
 const app = express();
+app.use(express.json()); // Hỗ trợ JSON request
 
-app.use(cors({ origin: "*", methods: ["POST"], allowedHeaders: ["Content-Type"] }));
-app.use(express.json());
+// Cấu hình CORS
+app.use(cors({ origin: "*", methods: ["GET", "POST", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization"] }));
+app.options("*", cors()); // Xử lý preflight request
 
-// Shopify API Config
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-const ADMIN_API_ACCESS_TOKEN = process.env.ADMIN_API_ACCESS_TOKEN;
+const SHOPIFY_SHARED_SECRET = process.env.SHOPIFY_SHARED_SECRET;
+const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN;
+const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-const SHOPIFY_API_URL = `https://${SHOPIFY_STORE}.myshopify.com/admin/api/2023-10/graphql.json`;
+/** 
+ * 🔐 Middleware xác thực HMAC từ Shopify
+ * 👉 Nếu test bằng Postman, đặt `SKIP_HMAC_CHECK = true` trong `.env`
+ */
+function verifyShopifyRequest(req, res, next) {
+    if (process.env.SKIP_HMAC_CHECK === "true") {
+        console.log("⚠️ Bỏ qua kiểm tra HMAC (chỉ dùng khi test Postman)");
+        return next();
+    }
 
-// 🛠 Hàm gửi request đến Shopify GraphQL API
-const shopifyRequest = async (query, variables = {}) => {
-    const response = await fetch(SHOPIFY_API_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "X-Shopify-Access-Token": ADMIN_API_ACCESS_TOKEN,
-        },
-        body: JSON.stringify({ query, variables }),
-    });
+    const hmac = req.headers["x-shopify-hmac-sha256"];
+    if (!hmac) return res.status(401).json({ error: "Thiếu HMAC header" });
 
-    return response.json();
-};
+    const body = JSON.stringify(req.body);
+    const digest = crypto.createHmac("sha256", SHOPIFY_SHARED_SECRET).update(body).digest("base64");
 
-// 🚀 API Proxy xử lý request từ frontend
+    if (digest !== hmac) {
+        console.log("❌ HMAC không hợp lệ");
+        return res.status(401).json({ error: "Unauthorized request" });
+    }
+
+    next();
+}
+
+/**
+ * 📡 API Proxy - Nhận request từ Shopify
+ */
 app.post("/api/LMserver.js", async (req, res) => {
+    console.log("✅ Nhận request từ Shopify:", req.body);
+
+    const { action, productGid } = req.body;
+    if (!productGid) return res.status(400).json({ error: "Thiếu productGid" });
+
+    const shopifyAdminApiUrl = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/2023-10/graphql.json`;
+
     try {
-        const { productGid } = req.body;
+        if (action === "get_metafield") {
+            // 📤 Lấy total_views từ metafield
+            const query = `
+            {
+                product(id: "${productGid}") {
+                    id
+                    title
+                    metafield(namespace: "custom", key: "total_views") {
+                        id
+                        value
+                    }
+                }
+            }`;
 
-        if (!productGid) {
-            return res.status(400).json({ success: false, error: "Thiếu productGid" });
-        }
-
-        // 🛠 Lấy total_views hiện tại từ Shopify Metafield
-        const GET_METAFIELD_QUERY = `
-      query getProductViews($productGid: ID!) {
-        product(id: $productGid) {
-          metafield(namespace: "custom", key: "total_views") {
-            value
-          }
-        }
-      }
-    `;
-
-        let response = await shopifyRequest(GET_METAFIELD_QUERY, { productGid });
-
-        let totalViews = response.data?.product?.metafield?.value || "0";
-        totalViews = parseInt(totalViews) + 1; // Tăng số lượt xem lên 1
-
-        console.log(`📊 Product ${productGid} - Views: ${totalViews}`);
-
-        // 🛠 Cập nhật total_views mới lên Shopify
-        const UPDATE_METAFIELD_QUERY = `
-      mutation updateProductViews($input: MetafieldsSetInput!) {
-        metafieldsSet(input: [$input]) {
-          metafields {
-            id
-            value
-          }
-          userErrors {
-            field
-            message
-          }
-        }
-      }
-    `;
-
-        const updateResponse = await shopifyRequest(UPDATE_METAFIELD_QUERY, {
-            input: {
-                ownerId: productGid,
-                namespace: "custom",
-                key: "total_views",
-                type: "integer",
-                value: totalViews.toString(),
-            },
-        });
-
-        if (updateResponse.data?.metafieldsSet?.userErrors.length > 0) {
-            return res.status(500).json({
-                success: false,
-                error: updateResponse.data.metafieldsSet.userErrors,
+            const response = await fetch(shopifyAdminApiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+                },
+                body: JSON.stringify({ query }),
             });
+
+            const data = await response.json();
+            const product = data.data.product;
+
+            if (!product) return res.status(404).json({ error: "Không tìm thấy sản phẩm" });
+
+            let totalViews = product.metafield ? parseInt(product.metafield.value) : 0;
+            console.log(`📊 Sản phẩm: ${product.title}, Lượt xem: ${totalViews}`);
+
+            return res.json({ success: true, totalViews });
         }
 
-        res.json({ success: true, totalViews });
+        if (action === "update_metafield") {
+            // 📤 Cập nhật total_views lên Shopify
+            let totalViews = req.body.totalViews || 0;
+
+            const updateQuery = `
+            mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+                metafieldsSet(metafields: $metafields) {
+                    metafields {
+                        id
+                        value
+                    }
+                    userErrors {
+                        field
+                        message
+                    }
+                }
+            }`;
+
+            const variables = {
+                metafields: [
+                    {
+                        ownerId: productGid,
+                        namespace: "custom",
+                        key: "total_views",
+                        type: "integer",
+                        value: `${totalViews}`,
+                    },
+                ],
+            };
+
+            const updateResponse = await fetch(shopifyAdminApiUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+                },
+                body: JSON.stringify({ query: updateQuery, variables }),
+            });
+
+            const updateData = await updateResponse.json();
+
+            if (updateData.errors || updateData.data.metafieldsSet.userErrors.length > 0) {
+                console.error("❌ Lỗi khi cập nhật metafield:", updateData);
+                return res.status(500).json({ error: "Lỗi khi cập nhật metafield" });
+            }
+
+            console.log(`✅ Đã cập nhật total_views: ${totalViews}`);
+            return res.json({ success: true, totalViews });
+        }
+
+        return res.status(400).json({ error: "Action không hợp lệ" });
     } catch (error) {
-        console.error("❌ Lỗi proxy:", error);
-        res.status(500).json({ success: false, error: "Internal Server Error" });
+        console.error("❌ Lỗi khi gọi API Shopify:", error);
+        res.status(500).json({ error: `Lỗi: ${error.message}` });
     }
 });
 
-// Khởi động server
+// 🚀 Khởi động server
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Proxy server chạy trên cổng ${PORT}`));
+app.listen(PORT, () => {
+    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
+});
