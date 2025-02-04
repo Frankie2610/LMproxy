@@ -44,10 +44,10 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         const data = await response.json();
 
-        let productViews = Number;
+        let productViews = 0;
         if (data.data?.product?.metafield?.value) {
             const productViewsArray = JSON.parse(data.data.product.metafield.value);
-            productViews = productViewsArray[0] || 0;
+            productViews = +productViewsArray[0] || 0;
         }
 
         // Update metafield 'product_views'
