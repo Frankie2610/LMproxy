@@ -60,7 +60,7 @@ app.post('/api/LMserver.js', async (req, res) => {
                     namespace: "custom",
                     key: "product_views",
                     type: "list.number_integer",
-                    value: "[${productViews}/2]"
+                    value: "[${productViews}]"
                 }
             ]) {
                 metafields {
