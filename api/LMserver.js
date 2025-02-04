@@ -21,11 +21,11 @@ app.post('/api/LMserver.js', async (req, res) => {
     }
 
     try {
-        // Get metafield 'total_views'
+        // Get metafield 'total_access'
         const query = `
         {
             product(id: "${productGid}") {
-                metafield(namespace: "custom", key: "total_views") {
+                metafield(namespace: "custom", key: "total_access") {
                     id
                     value
                 }
@@ -44,23 +44,23 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         const data = await response.json();
 
-        let totalViews;
+        let totalAccess = Number;
         if (data.data?.product?.metafield?.value) {
-            const totalViewsArray = JSON.parse(data.data.product.metafield.value);
-            totalViews = totalViewsArray[0] || 0;
+            const totalAccessArray = JSON.parse(data.data.product.metafield.value);
+            totalAccess = totalAccessArray[0] || 0;
         }
 
-        // Update metafield 'total_views'
-        totalViews += 1;
+        // Update metafield 'total_access'
+        totalAccess = totalAccess + 1 / 2;
         const mutation = `
         mutation {
             metafieldsSet(metafields: [
                 {
                     ownerId: "${productGid}",
                     namespace: "custom",
-                    key: "total_views",
+                    key: "total_access",
                     type: "list.number_integer",
-                    value: "[${totalViews}]"
+                    value: "[${totalAccess}]"
                 }
             ]) {
                 metafields {
@@ -84,8 +84,8 @@ app.post('/api/LMserver.js', async (req, res) => {
             body: JSON.stringify({ query: mutation }),
         });
 
-        res.json({ success: true, totalViews: totalViews });
-        return;
+        res.json({ success: true, totalAccess: totalAccess });
+        return totalAccess;
     } catch (error) {
         console.error('Lỗi:', error);
         res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
