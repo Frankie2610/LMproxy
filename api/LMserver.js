@@ -21,11 +21,11 @@ app.post('/api/LMserver.js', async (req, res) => {
     }
 
     try {
-        // Get metafield 'total_access'
+        // Get metafield 'total_views'
         const query = `
         {
             product(id: "${productGid}") {
-                metafield(namespace: "custom", key: "total_access") {
+                metafield(namespace: "custom", key: "total_views") {
                     id
                     value
                 }
@@ -44,23 +44,23 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         const data = await response.json();
 
-        let totalAccess = Number;
+        let totalViews = Number;
         if (data.data?.product?.metafield?.value) {
-            const totalAccessArray = JSON.parse(data.data.product.metafield.value);
-            totalAccess = totalAccessArray[0] || 0;
+            const totalViewsArray = JSON.parse(data.data.product.metafield.value);
+            totalViews = totalViewsArray[0] || 0;
         }
 
-        // Update metafield 'total_access'
-        totalAccess = totalAccess + 1 / 2;
+        // Update metafield 'total_views'
+        totalViews += 1;
         const mutation = `
         mutation {
             metafieldsSet(metafields: [
                 {
                     ownerId: "${productGid}",
                     namespace: "custom",
-                    key: "total_access",
+                    key: "total_views",
                     type: "list.number_integer",
-                    value: "[${totalAccess}]"
+                    value: "[${totalViews}]"
                 }
             ]) {
                 metafields {
@@ -84,8 +84,8 @@ app.post('/api/LMserver.js', async (req, res) => {
             body: JSON.stringify({ query: mutation }),
         });
 
-        res.json({ success: true, totalAccess: totalAccess });
-        return totalAccess;
+        res.json({ success: true, totalViews: totalViews });
+        return totalViews;
     } catch (error) {
         console.error('Lỗi:', error);
         res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
