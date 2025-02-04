@@ -85,7 +85,6 @@ app.post('/api/LMserver.js', async (req, res) => {
         });
 
         res.json({ success: true, productViews: productViews });
-        productViews = productViews - 1;
         return productViews;
     } catch (error) {
         console.error('Lỗi:', error);
