@@ -21,7 +21,7 @@ app.post('/api/LMserver.js', async (req, res) => {
     }
 
     try {
-        // Lấy metafield 'total_views' của sản phẩm
+        // Get metafield 'total_views'
         const query = `
         {
             product(id: "${productGid}") {
@@ -44,17 +44,13 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         const data = await response.json();
 
-        // Kiểm tra xem metafield có tồn tại không
-        let totalViews = Number;
+        let totalViews = 0;
         if (data.data?.product?.metafield?.value) {
-            // Phân tích chuỗi JSON để lấy mảng số nguyên
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
-            // Lấy giá trị số nguyên đầu tiên trong mảng
-            totalViews = +totalViewsArray[0] || 0;
+            totalViews = totalViewsArray[0] || 0;
         }
 
-
-        // Cập nhật metafield 'total_views' của sản phẩm
+        // Update metafield 'total_views'
         const mutation = `
         mutation {
             metafieldsSet(metafields: [
@@ -86,6 +82,7 @@ app.post('/api/LMserver.js', async (req, res) => {
             },
             body: JSON.stringify({ query: mutation }),
         });
+
         res.json({ success: true, totalViews });
         return;
     } catch (error) {
