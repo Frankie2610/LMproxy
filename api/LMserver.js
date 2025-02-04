@@ -44,13 +44,14 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         const data = await response.json();
 
-        let totalViews = Number;
+        let totalViews;
         if (data.data?.product?.metafield?.value) {
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
             totalViews = totalViewsArray[0] || 0;
         }
 
         // Update metafield 'total_views'
+        totalViews += 1;
         const mutation = `
         mutation {
             metafieldsSet(metafields: [
@@ -59,7 +60,7 @@ app.post('/api/LMserver.js', async (req, res) => {
                     namespace: "custom",
                     key: "total_views",
                     type: "list.number_integer",
-                    value: "[${totalViews + 1}]"
+                    value: "[${totalViews}]"
                 }
             ]) {
                 metafields {
@@ -83,7 +84,7 @@ app.post('/api/LMserver.js', async (req, res) => {
             body: JSON.stringify({ query: mutation }),
         });
 
-        res.json({ success: true, totalViews: totalViews + 1 });
+        res.json({ success: true, totalViews: totalViews });
         return;
     } catch (error) {
         console.error('Lỗi:', error);
