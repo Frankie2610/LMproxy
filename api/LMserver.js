@@ -44,7 +44,7 @@ app.post('/api/LMserver.js', async (req, res) => {
 
         const data = await response.json();
 
-        let totalViews = 0;
+        let totalViews = Number;
         if (data.data?.product?.metafield?.value) {
             const totalViewsArray = JSON.parse(data.data.product.metafield.value);
             totalViews = totalViewsArray[0] || 0;
@@ -83,11 +83,12 @@ app.post('/api/LMserver.js', async (req, res) => {
             body: JSON.stringify({ query: mutation }),
         });
 
-        res.json({ success: true, totalViews });
+        res.json({ success: true, totalViews: totalViews + 1 });
         return;
     } catch (error) {
         console.error('Lỗi:', error);
         res.status(500).json({ error: 'Lỗi máy chủ nội bộ' });
+        return
     }
 });
 
